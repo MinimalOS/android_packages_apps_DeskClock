@@ -476,6 +476,7 @@ public class AlarmAlertFullScreen extends Activity implements GlowPadView.OnTrig
             mGlowPadView.setTargetDescriptionsResourceId(R.array.dismiss_descriptions);
             mGlowPadView.setDirectionDescriptionsResourceId(R.array.dismiss_direction_descriptions);
         }
+        mPingEnabled = true;
         // The activity is locked to the default orientation as a default set in the manifest
         // Override this settings if the device is docked or config set it differently
         if (getResources().getBoolean(R.bool.config_rotateAlarmAlert) || mIsDocked) {
@@ -484,7 +485,6 @@ public class AlarmAlertFullScreen extends Activity implements GlowPadView.OnTrig
 
         attachListeners();
     }
-
     @Override
     public void onDestroy() {
         super.onDestroy();
@@ -497,6 +497,7 @@ public class AlarmAlertFullScreen extends Activity implements GlowPadView.OnTrig
     public void onPause() {
         super.onPause();
         detachListeners();
+        mPingEnabled = false;
     }
 
     @Override
