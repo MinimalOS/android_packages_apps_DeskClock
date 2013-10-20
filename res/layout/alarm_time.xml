@@ -15,13 +15,13 @@
 -->
 
 <com.android.deskclock.widget.swipeablelistview.SwipeLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/alarm_item"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:gravity="center_horizontal|top"
-    android:background="@color/alarm_whiteish">
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:id="@+id/alarm_item"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal|top"
+        android:background="@color/alarm_whiteish">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -183,7 +183,7 @@
             android:layout_marginTop="16dp"
             android:layout_marginBottom="16dp"
             android:layout_marginLeft="10dp"
-            android:layout_marginStart="10dp"
+	        android:layout_marginStart="10dp"
             android:layout_marginRight="16dp"
             android:layout_marginEnd="16dp"
             android:gravity="center_vertical">
@@ -191,11 +191,8 @@
             <TextView
                 android:id="@+id/choose_ringtone"
                 android:layout_height="match_parent"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_marginRight="16dp"
-                android:layout_marginEnd="16dp"
-                android:gravity="center_vertical"
+                android:layout_width="match_parent"
+                android:layout_marginBottom="10dp"
                 style="@style/body"
                 android:background="@drawable/item_background"
                 android:clickable="true"
@@ -205,9 +202,7 @@
                 android:singleLine="true"
                 android:marqueeRepeatLimit="marquee_forever"
                 android:drawableLeft="@drawable/ic_ringtone"
-                android:drawableStart="@drawable/ic_ringtone"
-                android:drawablePadding="2dp"
-                />
+                android:drawablePadding="2dp"/>
             <CheckBox
                 android:id="@+id/vibrate_onoff"
                 android:text="@string/alarm_vibrate"
@@ -215,7 +210,9 @@
                 android:textColor="@color/clock_gray"
                 android:layout_height="wrap_content"
                 android:layout_width="wrap_content"
-                android:layout_gravity="center_vertical|end"
+                android:layout_below="@id/choose_ringtone"
+                android:layout_alignParentLeft="true"
+                android:layout_marginRight="10dp"
                 style="@style/body"/>
             <CheckBox
                 android:id="@+id/increasing_volume_onoff"
