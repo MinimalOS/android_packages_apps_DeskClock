@@ -66,4 +66,8 @@
 
     <!-- Random song message -->
     <string name="random_song">Random</string>
+
+    <!-- Setting summary for showing/hiding the alarm statusbar icon -->
+    <string name="show_status_bar_icon_summary">Show an icon in the status bar when an alarm is set</string>
+
 </resources>
