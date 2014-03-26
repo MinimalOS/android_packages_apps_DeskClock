@@ -25,8 +25,6 @@ import android.app.AlertDialog;
 import android.app.Fragment;
 import android.app.FragmentTransaction;
 import android.app.LoaderManager;
-import android.app.Profile;
-import android.app.ProfileManager;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -34,7 +32,6 @@ import android.content.Intent;
 import android.content.Loader;
 import android.content.res.Configuration;
 import android.content.res.Resources;
-import android.database.ContentObserver;
 import android.database.Cursor;
 import android.database.DataSetObserver;
 import android.graphics.Rect;
@@ -44,10 +41,7 @@ import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Message;
 import android.os.Vibrator;
-import android.provider.Settings;
 import android.text.format.DateFormat;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -85,7 +79,6 @@ import java.text.DateFormatSymbols;
 import java.util.Calendar;
 import java.util.HashSet;
 import java.util.Locale;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -110,7 +103,6 @@ public class AlarmClockFragment extends DeskClockFragment implements
     private static final String KEY_DELETE_CONFIRMATION = "deleteConfirmation";
 
     private static final int REQUEST_CODE_RINGTONE = 1;
-    private static final int REQUEST_CODE_PROFILE = 2;
 
     // This extra is used when receiving an intent to create an alarm, but no alarm details
     // have been passed in, so the alarm page should start the process of creating a new alarm.
@@ -119,14 +111,6 @@ public class AlarmClockFragment extends DeskClockFragment implements
     // This extra is used when receiving an intent to scroll to specific alarm. If alarm
     // can not be found, and toast message will pop up that the alarm has be deleted.
     public static final String SCROLL_TO_ALARM_INTENT_EXTRA = "deskclock.scroll.to.alarm";
-
-    private ProfileManager mProfileManager;
-    private ProfilesObserver mProfileObserver;
-
-    private final Uri PROFILES_SETTINGS_URI =
-        Settings.System.getUriFor(Settings.System.SYSTEM_PROFILES_ENABLED);
-
-    private static final int MSG_PROFILE_STATUS_CHANGE = 1000;
 
     private ListView mAlarmsList;
     private AlarmItemAdapter mAdapter;
@@ -163,19 +147,6 @@ public class AlarmClockFragment extends DeskClockFragment implements
     // Cached layout positions of items in listview prior to add/removal of alarm item
     private ConcurrentHashMap<Long, Integer> mItemIdTopMap = new ConcurrentHashMap<Long, Integer>();
 
-    private final Handler mHandler = new Handler() {
-        @Override
-        public void handleMessage(Message msg) {
-            super.handleMessage(msg);
-
-            switch (msg.what) {
-                case MSG_PROFILE_STATUS_CHANGE:
-                    updateProfilesStatus();
-                    break;
-            }
-        }
-    };
-
     public AlarmClockFragment() {
         // Basic provider required by Fragment.java
     }
@@ -206,10 +177,6 @@ public class AlarmClockFragment extends DeskClockFragment implements
             previousDayMap = savedState.getBundle(KEY_PREVIOUS_DAY_MAP);
             mSelectedAlarm = savedState.getParcelable(KEY_SELECTED_ALARM);
         }
-
-        // Register profiles status
-        mProfileManager = (ProfileManager) getActivity().getSystemService(Context.PROFILE_SERVICE);
-        mProfileObserver = new ProfilesObserver(mHandler);
 
         mExpandInterpolator = new DecelerateInterpolator(EXPAND_DECELERATION);
         mCollapseInterpolator = new DecelerateInterpolator(COLLAPSE_DECELERATION);
@@ -519,11 +486,6 @@ public class AlarmClockFragment extends DeskClockFragment implements
             // The dialog is already open so we need to set the listener again.
             tpd.setOnTimeSetListener(this);
         }
-
-        // Update the profile status and register the profile observer
-        getActivity().getContentResolver().registerContentObserver(
-                PROFILES_SETTINGS_URI, false, mProfileObserver);
-        updateProfilesStatus();
     }
 
     private void hideUndoBar(boolean animate, MotionEvent event) {
@@ -578,9 +540,6 @@ public class AlarmClockFragment extends DeskClockFragment implements
         // home was pressed, just dismiss any existing toast bar when restarting
         // the app.
         hideUndoBar(false, null);
-
-        // Unregister the profile observer
-        getActivity().getContentResolver().unregisterContentObserver(mProfileObserver);
     }
 
     // Callback used by TimePickerDialog
@@ -709,15 +668,6 @@ public class AlarmClockFragment extends DeskClockFragment implements
         startActivityForResult(intent, REQUEST_CODE_RINGTONE);
     }
 
-    private void launchProfilePicker(Alarm alarm) {
-        mSelectedAlarm = alarm;
-        final Intent intent = new Intent(ProfileManager.ACTION_PROFILE_PICKER);
-
-        intent.putExtra(ProfileManager.EXTRA_PROFILE_EXISTING_UUID, alarm.profile.toString());
-        intent.putExtra(ProfileManager.EXTRA_PROFILE_SHOW_NONE, true);
-        startActivityForResult(intent, REQUEST_CODE_PROFILE);
-    }
-
     private void saveRingtoneUri(Intent intent) {
         Uri uri = intent.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI);
         if (uri == null) {
@@ -733,43 +683,6 @@ public class AlarmClockFragment extends DeskClockFragment implements
         asyncUpdateAlarm(mSelectedAlarm, false);
     }
 
-    private void saveProfile(Intent intent) {
-        final String uuid = intent.getStringExtra(ProfileManager.EXTRA_PROFILE_PICKED_UUID);
-        if (uuid != null) {
-            try {
-                mSelectedAlarm.profile = UUID.fromString(uuid);
-            } catch (IllegalArgumentException ex) {
-                mSelectedAlarm.profile = ProfileManager.NO_PROFILE;
-            }
-        } else {
-            mSelectedAlarm.profile = ProfileManager.NO_PROFILE;
-        }
-        asyncUpdateAlarm(mSelectedAlarm, false);
-    }
-
-    private boolean isProfilesEnabled() {
-        return Settings.System.getInt(getActivity().getContentResolver(),
-                Settings.System.SYSTEM_PROFILES_ENABLED, 1) == 1;
-    }
-
-    private String getProfileName(Alarm alarm) {
-        if (!isProfilesEnabled() || alarm.profile.equals(ProfileManager.NO_PROFILE)) {
-            return getString(R.string.profile_no_selected);
-        }
-        Profile profile = mProfileManager.getProfile(alarm.profile);
-        if (profile == null) {
-            return getString(R.string.profile_no_selected);
-        }
-        return profile.getName();
-    }
-
-    private void updateProfilesStatus() {
-        // Need to refresh the data
-        if (mAdapter != null) {
-            mAdapter.notifyDataSetChanged();
-        }
-    }
-
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (resultCode == Activity.RESULT_OK) {
@@ -777,30 +690,8 @@ public class AlarmClockFragment extends DeskClockFragment implements
                 case REQUEST_CODE_RINGTONE:
                     saveRingtoneUri(data);
                     break;
-                case REQUEST_CODE_PROFILE:
-                    saveProfile(data);
                 default:
                     Log.w("Unhandled request code in onActivityResult: " + requestCode);
-            }
-        }
-    }
-
-    private class ProfilesObserver extends ContentObserver {
-        public ProfilesObserver(Handler handler) {
-            super(handler);
-        }
-
-        @Override
-        public void onChange(boolean selfChange) {
-            onChange(selfChange, null);
-        }
-
-        @Override
-        public void onChange(boolean selfChange, Uri uri) {
-            if (uri == null) return;
-            if (PROFILES_SETTINGS_URI.equals(uri)) {
-                mHandler.removeMessages(MSG_PROFILE_STATUS_CHANGE);
-                mHandler.sendEmptyMessage(MSG_PROFILE_STATUS_CHANGE);
             }
         }
     }
@@ -852,7 +743,6 @@ public class AlarmClockFragment extends DeskClockFragment implements
             CheckBox vibrate;
             CheckBox increasingVolume;
             TextView ringtone;
-            TextView profile;
             View hairLine;
             View arrow;
             View collapseExpandArea;
@@ -1155,7 +1045,6 @@ public class AlarmClockFragment extends DeskClockFragment implements
             holder.vibrate = (CheckBox) view.findViewById(R.id.vibrate_onoff);
             holder.increasingVolume = (CheckBox) view.findViewById(R.id.increasing_volume_onoff);
             holder.ringtone = (TextView) view.findViewById(R.id.choose_ringtone);
-            holder.profile = (TextView) view.findViewById(R.id.choose_profile);
 
             view.setTag(holder);
         }
@@ -1291,8 +1180,6 @@ public class AlarmClockFragment extends DeskClockFragment implements
                     }
                 }
             });
-
-            itemHolder.profile.setVisibility(isProfilesEnabled() ? View.VISIBLE : View.GONE);
         }
 
         private void bindExpandArea(final ItemHolder itemHolder, final Alarm alarm) {
@@ -1443,18 +1330,6 @@ public class AlarmClockFragment extends DeskClockFragment implements
                     itemHolder.increasingVolume.setTextColor(checked ? mColorLit : mColorDim);
                     alarm.increasingVolume = checked;
                     asyncUpdateAlarm(alarm, false);
-                }
-            });
-
-            final String profile = getProfileName(alarm);
-            itemHolder.profile.setText(profile);
-            itemHolder.profile.setVisibility(isProfilesEnabled() ? View.VISIBLE : View.GONE);
-            itemHolder.profile.setContentDescription(
-                    mContext.getResources().getString(R.string.profile_description, profile));
-            itemHolder.profile.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    launchProfilePicker(alarm);
                 }
             });
         }
