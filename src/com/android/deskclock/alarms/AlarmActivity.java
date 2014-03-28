@@ -272,12 +272,16 @@ public class AlarmActivity extends Activity {
 
         mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
 
+        final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+
         // Get the volume/camera button behavior setting
-        final String vol =
-                PreferenceManager.getDefaultSharedPreferences(this)
-                .getString(SettingsActivity.KEY_VOLUME_BEHAVIOR,
-                        SettingsActivity.DEFAULT_VOLUME_BEHAVIOR);
+        final String vol = prefs.getString(SettingsActivity.KEY_VOLUME_ACTION,
+                SettingsActivity.DEFAULT_ALARM_ACTION);
         mVolumeBehavior = Integer.parseInt(vol);
+
+        final String flip = prefs.getString(SettingsActivity.KEY_FLIP_ACTION,
+                SettingsActivity.DEFAULT_ALARM_ACTION);
+        mFlipAction = Integer.parseInt(flip);
 
         final Window win = getWindow();
         win.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED |
@@ -303,7 +307,6 @@ public class AlarmActivity extends Activity {
         filter.addAction(ALARM_DISMISS_ACTION);
         registerReceiver(mReceiver, filter);
 
-        final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         mFlipAction = Integer.parseInt(prefs.getString(
                 SettingsActivity.KEY_FLIP_ACTION, DEFAULT_ACTION));
         mShakeAction = Integer.parseInt(prefs.getString(
@@ -374,28 +377,15 @@ public class AlarmActivity extends Activity {
         // Do this on key down to handle a few of the system keys.
         Log.v("AlarmActivity - dispatchKeyEvent - " + event.getKeyCode());
         switch (event.getKeyCode()) {
-            // Volume keys and camera keys dismiss the alarm
-            case KeyEvent.KEYCODE_POWER:
+            // Volume keys can snooze or dismiss the alarm
             case KeyEvent.KEYCODE_VOLUME_UP:
             case KeyEvent.KEYCODE_VOLUME_DOWN:
+                handleAction(mVolumeBehavior);
+                return true;
+            case KeyEvent.KEYCODE_POWER:
             case KeyEvent.KEYCODE_VOLUME_MUTE:
             case KeyEvent.KEYCODE_CAMERA:
             case KeyEvent.KEYCODE_FOCUS:
-                if (event.getAction() == KeyEvent.ACTION_UP) {
-                    switch (mVolumeBehavior) {
-                        case 1:
-                            snooze();
-                            break;
-
-                        case 2:
-                            dismiss();
-                            break;
-
-                        default:
-                            break;
-                    }
-                }
-                return true;
             default:
                 break;
         }
